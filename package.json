@@ -1,0 +1,17 @@
+{
+  "name": "backend-quiz-game",
+  "version": "1.0.0",
+  "description": "A backend focused quiz game",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev":"node --watch src/index.js"
+  },
+  "keywords": [],
+  "author": "ainoakomu",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
