@@ -3,27 +3,32 @@ const questions=[
     {
     id:1,
     question:"What is the capital of Finland?",
-    answer:" Helsinki"
+    answer:" Helsinki",
+    keywords:["question","geography"]
 },
 {
     id:2,
-    question:"What is the capital of Sweden?",
-    answer:" Stockholm"
+    question:"Where is IKEA from originally?",
+    answer:" Sweden",
+    keywords:["question","geography"]
 },
 {
     id:3,
-    question:"What is the capital of Norway?",
-    answer:" Oslo"
+    question:"What famous couple founded the Artek furniture company?",
+    answer:" Alvar and Aino Aalto",
+    keywords:["question","furniture"]
 },
 {
     id:4,
-    question:"What is the capital of Denmark?",
-    answer:" Copenhagen"
+    question:"What famous duo is celebrating their 10th anniversary with a Arena show in Helsinki in 20.11.2026?",
+    answer:" Viki ja Köpi",
+    keywords:["question","people"]
 },
 {
     id:5,
-    question:"What is the capital of Iceland?",
-    answer:" Reykjavik"
+    question:"Who says: I got a jar of dirt, i got a jar of dirt, and guess what's inside it?",
+    answer:" Jack Sparrow",
+    keywords:["question","movies"]
 }
 ];
 module.exports=questions;
