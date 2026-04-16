@@ -62,7 +62,7 @@ router.post("/",async (req,res)=> {
                 })),
             },
         },
-        inlcude: { keywords: true },
+        include: { keywords: true },
     });
 
     
@@ -112,7 +112,7 @@ router.delete("/:qId", async(req,res) => {
     const qId = Number(req.params.qId);
     const question= await prisma.question.findUnique({
         where: { id: qId },
-        inlcude: { keywords: true },
+        include: { keywords: true },
     });
 
     if(!question){
