@@ -1,15 +1,18 @@
 //import the express dependency
 const express = require('express');
 const app = express();  //creates the app
-
 const questionsRouter=require("./routes/questions");
+const authRouter = require("./routes/auth");
+const prisma = require("./lib/prisma");
 const PORT = process.env.PORT || 3000;
 
 // Middleware to parse JSON bodies (will be useful in later steps)
 app.use(express.json());
 
-//everything in questions
+//Routes
+app.use("/api/auth", authRouter);
 app.use("/api/questions", questionsRouter);
+
 app.use((req,res)=> {
   res.status(404).json({msg: "Not found"});
 })

@@ -1,6 +1,9 @@
 const express= require('express');
 const router =express.Router();
 const prisma=require("../lib/prisma");
+const authenticate = require("../middleware/auth");
+const isOwner = require("../middleware/isOwner");
+
 
 
 
@@ -11,6 +14,8 @@ function formatQuestion(question) {
   };
 }
 
+
+router.use(authenticate);
 
 //GET /api/questions/,/api/questions\keyword=geography
 router.get("/", async (req, res)=>{
@@ -70,7 +75,7 @@ router.post("/",async (req,res)=> {
 });
 
 //PUT /api/questions/:qId
-router.put("/:qId",async (req,res) =>{
+router.put("/:qId",isOwner,async (req,res) =>{
     const qId = Number(req.params.qId);
     const {question, answer, keywords}=req.body;
 
@@ -108,7 +113,7 @@ router.put("/:qId",async (req,res) =>{
 
 
 //DELETE /api/questions/:qId
-router.delete("/:qId", async(req,res) => {
+router.delete("/:qId", isOwner, async(req,res) => {
     const qId = Number(req.params.qId);
     const question= await prisma.question.findUnique({
         where: { id: qId },
