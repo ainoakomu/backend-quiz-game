@@ -4,9 +4,10 @@ const prisma=require("../lib/prisma");
 const authenticate = require("../middleware/auth");
 const isOwner = require("../middleware/isOwner");
 const multer=require("multer");
+const path= require("path");
 
 const storage=multer.diskStorage({
-    destination: path-join(__dirname,"..","..","public","uploads"),
+    destination: path.join(__dirname,"..","..","public","uploads"),
     filename: (req,file,cb)=>{
         const ext=path.extname(file.originalname);
         const newName=`${Date.now()}-${Math.round(Math.random().toString(36).slice(2,8))}${ext}`;
@@ -83,7 +84,9 @@ router.get("/:qId",async (req,res) => {
     const qId = Number(req.params.qId);
     const question=await prisma.question.findUnique({
         where: { id: qId },
-        include: { keywords: true, user: true }
+        include: { keywords: true, user: true, attempts:{where : {userId: req.user.userId},take:1},
+            _count:{select: {attempts:true} }, },
+       
     });
 
     if(!question){
@@ -107,6 +110,7 @@ router.post("/",upload.single("image"),async (req,res)=> {
             question,
             answer,
             imageUrl,
+            userId: req.user.userId,
             keywords: {
                 connectOrCreate: keywordsArray.map((k) => ({
                     where: { name: k },
@@ -114,7 +118,7 @@ router.post("/",upload.single("image"),async (req,res)=> {
                 })),
             },
         },
-        include: { keywords: true,user: true },
+        include: { keywords: true, user: true, attempts:{where : {userId: req.user.userId},take:1}, _count:{select: {attempts:true} }, },
     });
 
     
@@ -155,7 +159,7 @@ router.put("/:qId",isOwner,async (req,res) =>{
             },
             imageUrl,
         },
-        include: { keywords: true },
+        include: { keywords: true, user: true, attempts:{where : {userId: req.user.userId},take:1}, _count:{select: {attempts:true} }, },
     });
     res.json(formatQuestion(updatedQuestion));
 });
@@ -166,7 +170,7 @@ router.delete("/:qId", isOwner, async(req,res) => {
     const qId = Number(req.params.qId);
     const question= await prisma.question.findUnique({
         where: { id: qId },
-        include: { keywords: true, user: true },
+        include: { keywords: true, user: true, attempts:{where : {userId: req.user.userId},take:1}, _count:{select: {attempts:true} }, },
     });
 
     if(!question){
