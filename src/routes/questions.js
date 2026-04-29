@@ -26,7 +26,7 @@ router.get("/", async (req, res)=>{
 
     const filteredQuestions= await prisma.question.findMany({
         where,
-        include: { keywords: true },
+        include: { keywords: true, user: true },
         orderBy: { id: "asc" },
     });
 
@@ -38,7 +38,7 @@ router.get("/:qId",async (req,res) => {
     const qId = Number(req.params.qId);
     const question=await prisma.question.findUnique({
         where: { id: qId },
-        include: { keywords: true }
+        include: { keywords: true, user: true }
     });
 
     if(!question){
@@ -67,7 +67,7 @@ router.post("/",async (req,res)=> {
                 })),
             },
         },
-        include: { keywords: true },
+        include: { keywords: true,user: true },
     });
 
     
@@ -80,7 +80,7 @@ router.put("/:qId",isOwner,async (req,res) =>{
     const {question, answer, keywords}=req.body;
 
     const q= await prisma.question.findUnique({
-        where: { id: qId }
+        where: { id: qId },
     });
 
     if(!q){
@@ -117,7 +117,7 @@ router.delete("/:qId", isOwner, async(req,res) => {
     const qId = Number(req.params.qId);
     const question= await prisma.question.findUnique({
         where: { id: qId },
-        include: { keywords: true },
+        include: { keywords: true, user: true },
     });
 
     if(!question){
