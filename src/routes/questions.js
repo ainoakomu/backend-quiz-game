@@ -3,7 +3,26 @@ const router =express.Router();
 const prisma=require("../lib/prisma");
 const authenticate = require("../middleware/auth");
 const isOwner = require("../middleware/isOwner");
+const multer=require("multer");
 
+const storage=multer.diskStorage({
+    destination: path-join(__dirname,"..","..","public","uploads"),
+    filename: (req,file,cb)=>{
+        const ext=path.extname(file.originalname);
+        const newName=`${Date.now()}-${Math.round(Math.random().toString(36).slice(2,8))}${ext}`;
+        cb(null,newName);
+    }
+});
+
+
+const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files are allowed"));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 
 
 
@@ -74,18 +93,20 @@ router.get("/:qId",async (req,res) => {
 })
 
 //POST /api/questions/
-router.post("/",async (req,res)=> {
+router.post("/",upload.single("image"),async (req,res)=> {
+   
     const {id, question, answer, keywords}=req.body;
     if ( !question || !answer){
         return res.status(400).json({msg:"question and answer are required"});
     }
 
     const keywordsArray=Array.isArray(keywords)? keywords: [];
-  
+    const imageUrl=req.file ? `/uploads/${req.file.filename}` : null;
     const newQuestion= await prisma.question.create({
         data: {
             question,
             answer,
+            imageUrl,
             keywords: {
                 connectOrCreate: keywordsArray.map((k) => ({
                     where: { name: k },
@@ -119,6 +140,7 @@ router.put("/:qId",isOwner,async (req,res) =>{
     }
 
    const keywordsArray=Array.isArray(keywords)? keywords: [];
+    const imageUrl=req.file ? `/uploads/${req.file.filename}` : null;
    
     const updatedQuestion= await prisma.question.update({
         where: { id: qId },
@@ -131,6 +153,7 @@ router.put("/:qId",isOwner,async (req,res) =>{
                     create: { name: k },
                 })),
             },
+            imageUrl,
         },
         include: { keywords: true },
     });

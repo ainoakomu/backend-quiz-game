@@ -33,6 +33,7 @@ model Question {
   user     User  @relation(fields: [userId], references: [id])
   keywords Keyword[]
   attempts Attempt[]
+  imageUrl String?  @db.VarChar(255)
 
   @@map("questions")
 }
