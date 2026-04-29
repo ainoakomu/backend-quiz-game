@@ -11,26 +11,43 @@ function formatQuestion(question) {
   return {
     ...question,
     keywords: question.keywords.map((k) => k.name),
+    userName:question.user ? question.user.name :null,
+    user:undefined, // Exclude the user 
   };
 }
 
 
 router.use(authenticate);
 
-//GET /api/questions/,/api/questions\keyword=geography
+//GET /api/questions/,/api/questions\keyword=geography&page=1&limit=5
 router.get("/", async (req, res)=>{
     const {keyword}=req.query;
 
     const where =keyword ?
     { keywords: { some: { name: keyword } } } : {};
 
-    const filteredQuestions= await prisma.question.findMany({
+    const page=Math.max(1,parseInt(req.query.page) || 1);
+    const limit=Math.max(1, Math.min(100,parseInt(req.query.limit) || 5));
+    const skip = (page - 1) * limit;
+
+
+    const [filteredQuestions, total] = await Promise.all([
+        prisma.question.findMany({
         where,
         include: { keywords: true, user: true },
         orderBy: { id: "asc" },
+        skip,
+        take:limit,
+    }),prisma.question.count({ where }),]);
+
+    res.json({
+        data:filteredQuestions.map(formatQuestion),
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total/limit),
     });
 
-    res.json(filteredQuestions.map(formatQuestion));
 });
 
 //GET /api/questions/:qId
