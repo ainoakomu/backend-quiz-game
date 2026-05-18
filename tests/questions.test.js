@@ -59,5 +59,5 @@ it("return 403 when deleting another user's question", async () => {
     expect(after).not.toBeNull(); //ei muutu
 });
 
-it("")
+
 });

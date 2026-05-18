@@ -67,16 +67,12 @@ router.get("/", async (req, res)=>{
     const [filteredQuestions, total] = await Promise.all([
         prisma.question.findMany({
         where,
-<<<<<<< HEAD
         include: { 
             keywords: true, 
             user: true, 
             attempts:{where : {userId: req.user.userId}},
             _count:{select: {attempts:true} },
         },
-=======
-        include: { keywords: true, user: true },
->>>>>>> b97310d (fixed typos and postman working correctly)
         orderBy: { id: "asc" },
         skip,
         take:limit,
@@ -98,14 +94,10 @@ router.get("/:qId",async (req,res) => {
     //etsi kysymys
     const question=await prisma.question.findUnique({
         where: { id: qId },
-<<<<<<< HEAD
         include: { keywords: true, user: true, 
             attempts:{where : {userId: req.user.userId}},
             _count:{select: {attempts:true} }, },
        
-=======
-        include: { keywords: true, user: true }
->>>>>>> b97310d (fixed typos and postman working correctly)
     });
 
     if(!question){
@@ -134,11 +126,7 @@ router.post("/",upload.single("image"),async (req,res,next)=> {
                 })),
             },
         },
-<<<<<<< HEAD
         include: { keywords: true, user: true, attempts:{where : {userId: req.user.userId}}, _count:{select: {attempts:true} }, },
-=======
-        include: { keywords: true,user: true },
->>>>>>> b97310d (fixed typos and postman working correctly)
     });
 
     res.status(201).json(formatQuestion(newQuestion));
@@ -198,11 +186,7 @@ router.delete("/:qId", isOwner, async(req,res) => {
     const qId = Number(req.params.qId);
     const question= await prisma.question.findUnique({
         where: { id: qId },
-<<<<<<< HEAD
         include: { keywords: true, user: true, attempts:{where : {userId: req.user.userId}}, _count:{select: {attempts:true} }, },
-=======
-        include: { keywords: true, user: true },
->>>>>>> b97310d (fixed typos and postman working correctly)
     });
 
     if(!question){
