@@ -5,6 +5,9 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: newpassword
       MYSQL_DATABASE: quiz
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
     ports:
       - "3306:3306"
     volumes:

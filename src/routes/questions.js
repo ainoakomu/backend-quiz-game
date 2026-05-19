@@ -1,10 +1,11 @@
 const express= require('express');
 const router =express.Router();
 const prisma=require("../lib/prisma");
+const uploadToCloudinary = require("../utils/uploadToCloudinary");
 const authenticate = require("../middleware/auth");
 const isOwner = require("../middleware/isOwner");
 const multer=require("multer");
-const path= require("path");
+const storage = multer.memoryStorage();
 const {NotFoundError, ValidationError}=require("../lib/errors");
 const {z}=require("zod");
 
@@ -14,17 +15,6 @@ const PostInput= z.object({
     keywords:z.union([z.string(),z.array(z.string())]).optional(),
 });
 
-
-const storage=multer.diskStorage({
-    destination: path.join(__dirname,"..","..","public","uploads"),
-    filename: (req,file,cb)=>{
-        const ext=path.extname(file.originalname);
-        const newName=`${Date.now()}-${Math.round(Math.random().toString(36).slice(2,8))}${ext}`;
-        cb(null,newName);
-    }
-});
-
-
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
@@ -33,7 +23,6 @@ const upload = multer({
   },
   limits: { fileSize: 5 * 1024 * 1024 },
 });
-
 
 
 function formatQuestion(question) {
@@ -112,12 +101,22 @@ router.post("/",upload.single("image"),async (req,res,next)=> {
     const {id, question, answer, keywords}=PostInput.parse(req.body);
 
     const keywordsArray=Array.isArray(keywords)? keywords: [];
-    const imageUrl=req.file ? `/uploads/${req.file.filename}` : null;
+    let imageUrl = null;
+let imagePublicId = null;
+
+if (req.file) {
+  const uploadedImage = await uploadToCloudinary(req.file.buffer);
+
+  imageUrl = uploadedImage.secure_url;
+  imagePublicId = uploadedImage.public_id;
+}
+
     const newQuestion= await prisma.question.create({
         data: {
             question,
             answer,
             imageUrl,
+            imagePublicId,
             userId: req.user.userId,
             keywords: {
                 connectOrCreate: keywordsArray.map((k) => ({
@@ -142,7 +141,7 @@ router.post("/",upload.single("image"),async (req,res,next)=> {
 });
 
 //PUT /api/questions/:qId
-router.put("/:qId",isOwner,async (req,res) =>{
+router.put("/:qId",isOwner,upload.single("image"),async (req,res) =>{
     const qId = Number(req.params.qId);
     const {id, question, answer, keywords}=PostInput.parse(req.body);
 
@@ -160,8 +159,16 @@ router.put("/:qId",isOwner,async (req,res) =>{
     }
 
    const keywordsArray=Array.isArray(keywords)? keywords: [];
-    const imageUrl=req.file ? `/uploads/${req.file.filename}` : null;
-   
+let imageUrl = q.imageUrl;
+let imagePublicId = q.imagePublicId;
+
+if (req.file) {
+  const uploadedImage = await uploadToCloudinary(req.file.buffer);
+
+  imageUrl = uploadedImage.secure_url;
+  imagePublicId = uploadedImage.public_id;
+}
+
     const updatedQuestion= await prisma.question.update({
         where: { id: qId },
         data: {
@@ -174,6 +181,7 @@ router.put("/:qId",isOwner,async (req,res) =>{
                 })),
             },
             imageUrl,
+            imagePublicId,
         },
         include: { keywords: true, user: true, attempts:{where : {userId: req.user.userId}}, _count:{select: {attempts:true} }, },
     });
@@ -192,6 +200,10 @@ router.delete("/:qId", isOwner, async(req,res) => {
     if(!question){
         throw new NotFoundError("Question not found");
     }
+    if (question.imagePublicId) {
+  await cloudinary.uploader.destroy(question.imagePublicId);
+}
+
     await prisma.question.delete({
         where: { id: qId },
     });

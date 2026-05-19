@@ -24,6 +24,7 @@ model Question {
   answer   String    @db.VarChar(255)
   userId   Int
   imageUrl String?   @db.VarChar(255)
+  imagePublicId String?
   attempts Attempt[]
   user     User      @relation(fields: [userId], references: [id], map: "fk_question_user")
   keywords Keyword[] @relation("KeywordToQuestion")
