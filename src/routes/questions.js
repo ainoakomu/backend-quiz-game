@@ -2,6 +2,7 @@ const express= require('express');
 const router =express.Router();
 const prisma=require("../lib/prisma");
 const uploadToCloudinary = require("../utils/uploadToCloudinary");
+const cloudinary = require("../config/cloudinary");
 const authenticate = require("../middleware/auth");
 const isOwner = require("../middleware/isOwner");
 const multer=require("multer");
@@ -112,10 +113,25 @@ router.post("/",upload.single("image"),async (req,res,next)=> {
 let imagePublicId = null;
 
 if (req.file) {
-  const uploadedImage = await uploadToCloudinary(req.file.buffer);
+    try {
+        console.log("PUT /api/questions/:qId - received file:", {
+            originalname: req.file.originalname,
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+        });
 
-  imageUrl = uploadedImage.secure_url;
-  imagePublicId = uploadedImage.public_id;
+        const uploadedImage = await uploadToCloudinary(req.file.buffer);
+
+        imageUrl = uploadedImage.secure_url;
+        imagePublicId = uploadedImage.public_id;
+    } catch (uploadErr) {
+        console.error("Error uploading image in PUT /api/questions/:qId", {
+            message: uploadErr?.message,
+            stack: uploadErr?.stack,
+            file: req.file && { originalname: req.file.originalname, size: req.file.size },
+        });
+        throw uploadErr;
+    }
 }
 
     const newQuestion= await prisma.question.create({
