@@ -13,7 +13,8 @@ const {
 const SECRET = process.env.JWT_SECRET;
 
 //POST /api/auth/register
-router.post("/register", async (req, res) => {
+router.post("/register", async (req, res,next) => {
+  try{
   const { email, password, name } = req.body;
 
   if (!email || !password || !name) {
@@ -45,10 +46,14 @@ router.post("/register", async (req, res) => {
     message: "User registered successfully",
     token,
   });
+}catch (err) {
+  next(err)
+}
 });
 
 //POST /api/auth/login
-router.post("/login", async (req, res) => {
+router.post("/login", async (req, res, next) => {
+  try{
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -68,13 +73,16 @@ router.post("/login", async (req, res) => {
   const isValid = await bcrypt.compare(password, user.password);
 
   if (!isValid) {
-    throw new ForbiddenError("Invalid credentials");
+    throw new UnauthorizedError("Invalid credentials");
   }
 
   // Generate a token
   const token = jwt.sign({ userId: user.id }, SECRET, { expiresIn: "1h" });
 
   res.json({ token });
+} catch (err){
+  next(err)
+}
 });
 
 module.exports = router;

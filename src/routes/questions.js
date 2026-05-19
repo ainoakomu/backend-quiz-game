@@ -42,7 +42,8 @@ function formatQuestion(question) {
 router.use(authenticate);
 
 //GET /api/questions/,/api/questions\keyword=geography&page=1&limit=5
-router.get("/", async (req, res)=>{
+router.get("/", async (req, res,next)=>{
+    try{
     const {keyword}=req.query;
 
     const where =keyword ?
@@ -74,11 +75,14 @@ router.get("/", async (req, res)=>{
         total,
         totalPages: Math.ceil(total/limit),
     });
-
+    }catch (err){
+        next(err)
+    }
 });
 
 //GET /api/questions/:qId
-router.get("/:qId",async (req,res) => {
+router.get("/:qId",async (req,res,next) => {
+    try{
     const qId = Number(req.params.qId);
     //etsi kysymys
     const question=await prisma.question.findUnique({
@@ -93,6 +97,9 @@ router.get("/:qId",async (req,res) => {
         throw new NotFoundError("Question not found");
     }
     res.json(formatQuestion(question));
+}catch (err){
+    next(err)
+}
 })
 
 //POST /api/questions/
@@ -141,7 +148,8 @@ if (req.file) {
 });
 
 //PUT /api/questions/:qId
-router.put("/:qId",isOwner,upload.single("image"),async (req,res) =>{
+router.put("/:qId",isOwner,upload.single("image"),async (req,res,next) =>{
+    try{
     const qId = Number(req.params.qId);
     const {id, question, answer, keywords}=PostInput.parse(req.body);
 
@@ -186,11 +194,15 @@ if (req.file) {
         include: { keywords: true, user: true, attempts:{where : {userId: req.user.userId}}, _count:{select: {attempts:true} }, },
     });
     res.json(formatQuestion(updatedQuestion));
+} catch(err){
+    next(err)
+}
 });
 
 
 //DELETE /api/questions/:qId
-router.delete("/:qId", isOwner, async(req,res) => {
+router.delete("/:qId", isOwner, async(req,res,next) => {
+    try{
     const qId = Number(req.params.qId);
     const question= await prisma.question.findUnique({
         where: { id: qId },
@@ -212,11 +224,15 @@ router.delete("/:qId", isOwner, async(req,res) => {
         msg: "Question deleted successfully",
         question: formatQuestion(question),
     }); 
+}catch(err){
+    next(err)
+}
 });
 
 //POST /api/questions/:qId/attempt
-router.post("/:qId/attempt", async (req,res) => {
+router.post("/:qId/attempt", async (req,res,next) => {
 
+    try{
     const qId=Number(req.params.qId);
     //etsi kysymys
     const question= await prisma.question.findUnique({
@@ -246,11 +262,14 @@ router.post("/:qId/attempt", async (req,res) => {
         attemptCount,
         createdAt: attempt.createdAt,
     });
-
+    }catch(err){
+        next(err)
+    }
 });
 
 //DELETE /api/questions/:qId/attempt
-router.delete("/:qId/attempt", async (req,res) => {
+router.delete("/:qId/attempt", async (req,res,next) => {
+    try{
 
     const qId=Number(req.params.qId);
     const question= await prisma.question.findUnique({
@@ -288,11 +307,14 @@ router.delete("/:qId/attempt", async (req,res) => {
         attempted: false,
         attemptCount,
     });
-
+    }catch(err){
+        next(err)
+    }
 });
 
 //POST /api/questions/:qId/play
-router.post("/:qId/play", async (req, res) => {
+router.post("/:qId/play", async (req, res,next) => {
+    try{
   const userId = req.user.userId;
   const qId = Number(req.params.qId);
   const { answer } = req.body;
@@ -338,6 +360,9 @@ router.post("/:qId/play", async (req, res) => {
     attemptCount,   //lukumäärät
     solvedCount,
   });
+}catch(err){
+    next(err)
+}
 });
 
 module.exports=router;

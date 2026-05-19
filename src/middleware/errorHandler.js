@@ -27,7 +27,8 @@ function errorHandler(err,req,res,next){
         return res.status(400).json({message: "Invalid JSON in request body"});
     }
 
-    req.log?.error({err}, "Unhandled error");
+    req.log?.error({err: {message: err.message, stack: err.tack, code:err.code}}, "Unhandled error");
+    console.error("Unhandled error details",err);
     res.status(500).json({message: "Internal server error"});
 }
 module.exports=errorHandler;
