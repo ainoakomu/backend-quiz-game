@@ -42,6 +42,8 @@ function formatQuestion(question) {
 
 router.use(authenticate);
 
+//added try catch to help debug the cloudinary and for safety
+
 //GET /api/questions/,/api/questions\keyword=geography&page=1&limit=5
 router.get("/", async (req, res,next)=>{
     try{
