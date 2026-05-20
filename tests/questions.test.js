@@ -59,5 +59,24 @@ it("return 403 when deleting another user's question", async () => {
     expect(after).not.toBeNull(); //ei muutu
 });
 
+it("deletes a question even when attempts exist", async () => {
+    const token = await registerAndLogin();
+    const question = await createQuestion(token, { question: "What is 2+2?", answer: "4" });
+
+    await request(app)
+      .post(`/api/questions/${question}/attempt`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+
+    const res = await request(app)
+      .delete(`/api/questions/${question}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.msg).toBe("Question deleted successfully");
+
+    const after = await prisma.question.findUnique({ where: { id: question } });
+    expect(after).toBeNull();
+});
 
 });

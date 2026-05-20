@@ -259,6 +259,10 @@ router.delete("/:qId", isOwner, async (req, res, next) => {
       await cloudinary.uploader.destroy(question.imagePublicId);
     }
 
+    await prisma.attempt.deleteMany({
+      where: { questionId: qId },
+    });
+
     await prisma.question.delete({
       where: { id: qId },
     });
