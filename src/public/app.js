@@ -1,5 +1,32 @@
 // --- State ---
 let isRegisterMode = false;
+let reCaptchaWidgetId = null;
+
+// --- Globals for reCAPTCHA ---
+window.onRecaptchaLoad = () => {
+  window.recaptchaLoaded = true;
+  if (typeof window.renderRecaptchaWidget === "function") {
+    window.renderRecaptchaWidget();
+  }
+};
+
+window.renderRecaptchaWidget = () => {
+  if (!isRegisterMode || !CONFIG.RECAPTCHA_SITE_KEY) {
+    reCaptchaWidgetId = null;
+    return;
+  }
+  const container = document.getElementById("recaptcha-container");
+  if (!container || !window.grecaptcha || typeof window.grecaptcha.render !== "function") return;
+
+  if (reCaptchaWidgetId !== null) {
+    window.grecaptcha.reset(reCaptchaWidgetId);
+    return;
+  }
+
+  reCaptchaWidgetId = window.grecaptcha.render(container, {
+    sitekey: CONFIG.RECAPTCHA_SITE_KEY,
+  });
+};
 
 // --- Helpers ---
 function getCurrentUserId() {
@@ -66,6 +93,7 @@ function renderAuthForm() {
           </div>`;
         })
         .join("")}
+      ${isRegisterMode && CONFIG.RECAPTCHA_SITE_KEY ? `<div id="recaptcha-container" class="form-group"></div>` : ""}
       <button type="submit">${title}</button>
     </form>
     <p class="switch-text">${switchText}</p>
@@ -79,6 +107,8 @@ function renderAuthForm() {
     isRegisterMode = !isRegisterMode;
     renderAuthForm();
   });
+
+  window.renderRecaptchaWidget();
 }
 
 async function handleAuth(e) {
@@ -93,6 +123,17 @@ async function handleAuth(e) {
   fields.forEach((f) => {
     body[f] = document.getElementById(f).value;
   });
+
+  if (isRegisterMode && CONFIG.RECAPTCHA_SITE_KEY) {
+    if (!window.grecaptcha || reCaptchaWidgetId === null) {
+      throw new Error("Please complete the CAPTCHA before registering.");
+    }
+    const captchaResponse = window.grecaptcha.getResponse(reCaptchaWidgetId);
+    if (!captchaResponse) {
+      throw new Error("Please complete the CAPTCHA before registering.");
+    }
+    body.captchaToken = captchaResponse;
+  }
 
   try {
     const data = await apiFetch(route, {

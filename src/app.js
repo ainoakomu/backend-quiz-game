@@ -1,4 +1,5 @@
 //import the express dependency
+require("dotenv").config();
 const express = require('express');
 const app = express();  //creates the app
 const questionsRouter=require("./routes/questions");

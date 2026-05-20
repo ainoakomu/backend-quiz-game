@@ -1,4 +1,5 @@
 const express = require("express");
+const https = require("https");
 const router = express.Router();
 const prisma = require("../lib/prisma");
 const jwt = require("jsonwebtoken");
@@ -11,14 +12,64 @@ const {
 } = require("../lib/errors");
 
 const SECRET = process.env.JWT_SECRET;
+const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET;
+
+function verifyCaptcha(token) {
+  return new Promise((resolve, reject) => {
+    if (!RECAPTCHA_SECRET) return resolve();
+    if (!token) return reject(new ValidationError("CAPTCHA token is required"));
+
+    const postData = new URLSearchParams({
+      secret: RECAPTCHA_SECRET,
+      response: token,
+    }).toString();
+
+    const options = {
+      hostname: "www.google.com",
+      path: "/recaptcha/api/siteverify",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Length": Buffer.byteLength(postData),
+      },
+    };
+
+    const request = https.request(options, (res) => {
+      let body = "";
+      res.on("data", (chunk) => {
+        body += chunk;
+      });
+      res.on("end", () => {
+        try {
+          const data = JSON.parse(body);
+          if (data.success) {
+            resolve(data);
+          } else {
+            reject(new ValidationError("CAPTCHA verification failed"));
+          }
+        } catch (err) {
+          reject(new ValidationError("CAPTCHA verification failed"));
+        }
+      });
+    });
+
+    request.on("error", (error) => reject(new ValidationError("CAPTCHA verification failed")));
+    request.write(postData);
+    request.end();
+  });
+}
 
 //POST /api/auth/register
 router.post("/register", async (req, res,next) => {
   try{
-  const { email, password, name } = req.body;
+  const { email, password, name, captchaToken } = req.body;
 
   if (!email || !password || !name) {
     throw new ValidationError("email, name and password are required");
+  }
+
+  if (RECAPTCHA_SECRET) {
+    await verifyCaptcha(captchaToken);
   }
 
   //check if the user already exists
