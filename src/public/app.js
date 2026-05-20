@@ -248,6 +248,23 @@ async function loadQuestionDetail(qId) {
     const q = await apiFetch(`${CONFIG.ROUTES.QUESTIONS}/${qId}`);
     const currentUserId = getCurrentUserId();
     const isOwner = q.userId === currentUserId;
+    const hasAnswer = typeof q.answer === "string" && q.answer.trim() !== "";
+
+    const choicesHtml = q.choices && q.choices.length > 0
+      ? `
+          <div class="question-choices">
+            <h4>Choices</h4>
+            <ol>
+              ${q.choices.map((choice) => `<li>${choice}</li>`).join("")}
+            </ol>
+          </div>`
+      : "";
+
+    const answerHtml = hasAnswer
+      ? q.choices && q.choices.length > 0
+        ? `<p class="question-answer">Correct answer: ${q.answer}</p>`
+        : `<p class="question-answer">${q.answer}</p>`
+      : `<p class="question-answer">Answer hidden until you play.</p>`;
 
     container.innerHTML = `
       <a href="#" id="back-btn" class="back-link">&larr; Back to questions</a>
@@ -255,15 +272,8 @@ async function loadQuestionDetail(qId) {
         <h3>${q.question} ${q[CONFIG.API_FIELDS.SOLVED] ? `<span class="badge-solved">Solved</span>` : ""}</h3>
         <p class="question-meta">by ${q.userName || "Unknown"}</p>
         ${q.imageUrl ? `<img class="question-image" src="${q.imageUrl}" alt="">` : ""}
-        ${q.choices && q.choices.length > 0 ? `
-          <div class="question-choices">
-            <h4>Choices</h4>
-            <ol>
-              ${q.choices.map((choice) => `<li>${choice}</li>`).join("")}
-            </ol>
-          </div>
-          <p class="question-answer">Correct answer: ${q.answer}</p>
-        ` : `<p class="question-answer">${q.answer}</p>`}
+        ${choicesHtml}
+        ${answerHtml}
         ${
           q.keywords && q.keywords.length
             ? `<div class="question-keywords">${q.keywords.map((k) => `<span class="keyword">${k}</span>`).join("")}</div>`
