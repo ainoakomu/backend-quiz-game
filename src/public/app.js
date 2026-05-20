@@ -255,7 +255,15 @@ async function loadQuestionDetail(qId) {
         <h3>${q.question} ${q[CONFIG.API_FIELDS.SOLVED] ? `<span class="badge-solved">Solved</span>` : ""}</h3>
         <p class="question-meta">by ${q.userName || "Unknown"}</p>
         ${q.imageUrl ? `<img class="question-image" src="${q.imageUrl}" alt="">` : ""}
-        <p class="question-answer">${q.answer}</p>
+        ${q.choices && q.choices.length > 0 ? `
+          <div class="question-choices">
+            <h4>Choices</h4>
+            <ol>
+              ${q.choices.map((choice) => `<li>${choice}</li>`).join("")}
+            </ol>
+          </div>
+          <p class="question-answer">Correct answer: ${q.answer}</p>
+        ` : `<p class="question-answer">${q.answer}</p>`}
         ${
           q.keywords && q.keywords.length
             ? `<div class="question-keywords">${q.keywords.map((k) => `<span class="keyword">${k}</span>`).join("")}</div>`
@@ -300,6 +308,9 @@ async function showQuestionForm(qId) {
     }
   }
 
+  const currentChoices = q.choices && q.choices.length ? q.choices : ["", "", "", ""];
+  const correctChoiceIndex = currentChoices.findIndex((choice) => choice === q.answer);
+
   container.innerHTML = `
     <a href="#" id="back-btn" class="back-link">&larr; Back to questions</a>
     <div class="question-form-wrapper">
@@ -310,8 +321,30 @@ async function showQuestionForm(qId) {
           <input type="text" id="q-question" value="${q.question}" required />
         </div>
         <div class="form-group">
+          <label>Multiple choice options (optional)</label>
+          ${[0, 1, 2, 3]
+            .map(
+              (index) => `
+            <input type="text" id="q-choice-${index}" placeholder="Choice ${index + 1}" value="${currentChoices[index] ?? ""}" />`
+            )
+            .join("")}
+          <p class="hint">Fill at least two choices and select the correct one, or leave all blank to use free-text answer.</p>
+        </div>
+        <div class="form-group">
+          <label for="q-correct-choice">Correct choice</label>
+          <select id="q-correct-choice">
+            ${[0, 1, 2, 3]
+              .map(
+                (index) => `
+              <option value="${index}" ${correctChoiceIndex === index ? "selected" : ""}>Choice ${index + 1}</option>`
+              )
+              .join("")}
+          </select>
+        </div>
+        <div class="form-group">
           <label for="q-answer">Answer</label>
-          <textarea id="q-answer" rows="4" required>${q.answer}</textarea>
+          <textarea id="q-answer" rows="4">${q.answer}</textarea>
+          <p class="hint">If you provide choices, the selected choice will become the correct answer.</p>
         </div>
         <div class="form-group">
           <label for="q-keywords">Keywords (comma-separated)</label>
@@ -341,6 +374,13 @@ async function showQuestionForm(qId) {
     body.append("question", document.getElementById("q-question").value);
     body.append("answer", document.getElementById("q-answer").value);
     body.append("keywords", document.getElementById("q-keywords").value);
+
+    const choices = [0, 1, 2, 3].map((index) => document.getElementById(`q-choice-${index}`).value.trim()).filter(Boolean);
+    if (choices.length > 0) {
+      choices.forEach((choice) => body.append("choices", choice));
+      body.append("correctChoiceIndex", document.getElementById("q-correct-choice").value);
+    }
+
     const imageFile = document.getElementById("q-image").files[0];
     if (imageFile) body.append("image", imageFile);
 
@@ -376,10 +416,25 @@ async function playQuestion(qId) {
             : ""
         }
         <form id="play-form" style="text-align:left">
+          ${q.choices && q.choices.length > 0 ? `
+          <div class="form-group">
+            <label>Choose an answer</label>
+            ${q.choices
+              .map(
+                (choice, index) => `
+                  <label style="display:block;margin-bottom:0.4rem;cursor:pointer">
+                    <input type="radio" name="play-choice" value="${index}" style="margin-right:0.5rem" />
+                    ${choice}
+                  </label>`
+              )
+              .join("")}
+          </div>
+          ` : `
           <div class="form-group">
             <label for="play-answer">Your answer</label>
             <textarea id="play-answer" rows="3" required></textarea>
           </div>
+          `}
           <div style="text-align:center">
             <button type="submit" class="btn btn-play" style="padding:0.7rem 2.5rem;font-size:1rem">Submit</button>
           </div>
@@ -400,12 +455,19 @@ async function playQuestion(qId) {
       errorEl.textContent = "";
       resultEl.innerHTML = "";
 
-      const answer = document.getElementById("play-answer").value;
+      const playChoice = document.querySelector("input[name='play-choice']:checked");
+      const requestBody = {};
+
+      if (playChoice) {
+        requestBody.choiceIndex = Number(playChoice.value);
+      } else {
+        requestBody.answer = document.getElementById("play-answer")?.value;
+      }
 
       try {
         const result = await apiFetch(`${CONFIG.ROUTES.QUESTIONS}/${qId}/play`, {
           method: "POST",
-          body: JSON.stringify({ answer }),
+          body: JSON.stringify(requestBody),
         });
 
         if (result.correct) {

@@ -12,7 +12,9 @@ const { z } = require("zod");
 
 const PostInput = z.object({
   question: z.string().min(1),
-  answer: z.string().min(1),
+  answer: z.string().optional(),
+  choices: z.union([z.string(), z.array(z.string())]).optional(),
+  correctChoiceIndex: z.union([z.string(), z.number()]).optional(),
   keywords: z.union([z.string(), z.array(z.string())]).optional(),
 });
 
@@ -25,6 +27,37 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
+function parseChoices(rawChoices) {
+  if (!rawChoices) return [];
+  const choices = Array.isArray(rawChoices) ? rawChoices : [rawChoices];
+  return choices.map((choice) => choice?.toString().trim()).filter(Boolean);
+}
+
+function normalizeQuestionData({ question, answer, choices, correctChoiceIndex, keywords }) {
+  const parsedChoices = parseChoices(choices);
+  const filteredChoices = parsedChoices.filter((choice) => choice.length > 0);
+  let normalizedAnswer = typeof answer === "string" ? answer.trim() : "";
+
+  if (filteredChoices.length > 0) {
+    const index = Number(correctChoiceIndex);
+    if (!Number.isInteger(index) || index < 0 || index >= filteredChoices.length) {
+      throw new ValidationError("Correct choice index is required for multiple choice questions");
+    }
+    normalizedAnswer = filteredChoices[index];
+  }
+
+  if (!normalizedAnswer) {
+    throw new ValidationError("Answer is required");
+  }
+
+  return {
+    question,
+    answer: normalizedAnswer,
+    choices: filteredChoices.length > 0 ? filteredChoices : null,
+    keywords: Array.isArray(keywords) ? keywords : keywords ? [keywords] : [],
+  };
+}
+
 function formatQuestion(question, includeAnswer = false) {
   return {
     id: question.id,
@@ -34,6 +67,7 @@ function formatQuestion(question, includeAnswer = false) {
     updatedAt: question.updatedAt,
 
     keywords: question.keywords?.map((k) => k.name) ?? [],
+    choices: question.choices ?? [],
 
     userId: question.userId,
     userName: question.user ? question.user.name : null,
@@ -117,15 +151,16 @@ router.get("/:qId", async (req, res, next) => {
 //POST /api/questions/
 router.post("/", upload.single("image"), async (req, res, next) => {
   try {
-    const { id, question, answer, keywords } = PostInput.parse(req.body);
+    const { question, answer, choices, correctChoiceIndex, keywords } = PostInput.parse(req.body);
+    const normalized = normalizeQuestionData({ question, answer, choices, correctChoiceIndex, keywords });
 
-    const keywordsArray = Array.isArray(keywords) ? keywords : [];
+    const keywordsArray = Array.isArray(normalized.keywords) ? normalized.keywords : [];
     let imageUrl = null;
     let imagePublicId = null;
 
     if (req.file) {
       try {
-        console.log("PUT /api/questions/:qId - received file:", {
+        console.log("POST /api/questions - received file:", {
           originalname: req.file.originalname,
           mimetype: req.file.mimetype,
           size: req.file.size,
@@ -136,7 +171,7 @@ router.post("/", upload.single("image"), async (req, res, next) => {
         imageUrl = uploadedImage.secure_url;
         imagePublicId = uploadedImage.public_id;
       } catch (uploadErr) {
-        console.error("Error uploading image in PUT /api/questions/:qId", {
+        console.error("Error uploading image in POST /api/questions", {
           message: uploadErr?.message,
           stack: uploadErr?.stack,
           file: req.file && {
@@ -150,8 +185,9 @@ router.post("/", upload.single("image"), async (req, res, next) => {
 
     const newQuestion = await prisma.question.create({
       data: {
-        question,
-        answer,
+        question: normalized.question,
+        answer: normalized.answer,
+        choices: normalized.choices,
         imageUrl,
         imagePublicId,
         userId: req.user.userId,
@@ -186,7 +222,8 @@ router.post("/", upload.single("image"), async (req, res, next) => {
 router.put("/:qId", isOwner, upload.single("image"), async (req, res, next) => {
   try {
     const qId = Number(req.params.qId);
-    const { id, question, answer, keywords } = PostInput.parse(req.body);
+    const { question, answer, choices, correctChoiceIndex, keywords } = PostInput.parse(req.body);
+    const normalized = normalizeQuestionData({ question, answer, choices, correctChoiceIndex, keywords });
 
     const q = await prisma.question.findUnique({
       where: { id: qId },
@@ -196,11 +233,7 @@ router.put("/:qId", isOwner, upload.single("image"), async (req, res, next) => {
       throw new NotFoundError("Question not found");
     }
 
-    if (!question || !answer) {
-      throw new ValidationError("Question and answer are mandatory");
-    }
-
-    const keywordsArray = Array.isArray(keywords) ? keywords : [];
+    const keywordsArray = Array.isArray(normalized.keywords) ? normalized.keywords : [];
     let imageUrl = q.imageUrl;
     let imagePublicId = q.imagePublicId;
 
@@ -214,8 +247,9 @@ router.put("/:qId", isOwner, upload.single("image"), async (req, res, next) => {
     const updatedQuestion = await prisma.question.update({
       where: { id: qId },
       data: {
-        question,
-        answer,
+        question: normalized.question,
+        answer: normalized.answer,
+        choices: normalized.choices,
         keywords: {
           connectOrCreate: keywordsArray.map((k) => ({
             where: { name: k },
@@ -365,7 +399,7 @@ router.post("/:qId/play", async (req, res, next) => {
   try {
     const userId = req.user.userId;
     const qId = Number(req.params.qId);
-    const { answer } = req.body;
+    const { answer, choiceIndex } = req.body;
 
     //etsi kysymys
     const question = await prisma.question.findUnique({
@@ -375,10 +409,18 @@ router.post("/:qId/play", async (req, res, next) => {
       throw new NotFoundError("Question not found");
     }
 
-    //tarkistetaan vastaus
-    const isCorrect =
-      question.answer.trim().toLowerCase() ===
-      (answer || "").trim().toLowerCase();
+    let isCorrect;
+    if (question.choices && Array.isArray(question.choices) && question.choices.length > 0) {
+      if (choiceIndex === undefined || choiceIndex === null || String(choiceIndex).trim() === "") {
+        throw new ValidationError("Choice selection is required");
+      }
+      const index = Number(choiceIndex);
+      isCorrect = question.choices[index] === question.answer;
+    } else {
+      isCorrect =
+        question.answer.trim().toLowerCase() ===
+        (answer || "").trim().toLowerCase();
+    }
 
     //jos oikein, merkitään ratkaistuksi, muuten lisätään yritys
     if (isCorrect) {

@@ -32,6 +32,30 @@ it("returns 400 for invalid question body", async () => {
     expect(res.status).toBe(400);
 });
 
+it("creates and plays a multiple choice question", async () => {
+    const token = await registerAndLogin();
+    const res = await request(app)
+      .post("/api/questions")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        question: "What is the color of the sky?",
+        choices: ["Red", "Blue", "Green", "Yellow"],
+        correctChoiceIndex: 1,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.choices).toEqual(["Red", "Blue", "Green", "Yellow"]);
+    expect(res.body.answer).toBeUndefined();
+
+    const playRes = await request(app)
+      .post(`/api/questions/${res.body.id}/play`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ choiceIndex: 1 });
+
+    expect(playRes.status).toBe(200);
+    expect(playRes.body.correct).toBe(true);
+});
+
 it("returns 403 when editing another user's question", async () => {
     const Atoken = await registerAndLogin("a@test.io","A");
     const question = await createQuestion(Atoken, { question: "What is 2+2?", answer: "4" });

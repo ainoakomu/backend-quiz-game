@@ -47,7 +47,11 @@ router.post("/register", async (req, res,next) => {
     token,
   });
 }catch (err) {
-  next(err)
+  if (err?.code === "P2002") {
+    next(new ConflictError("email already registered"));
+  } else {
+    next(err);
+  }
 }
 });
 
