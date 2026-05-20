@@ -3,15 +3,15 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model User {
   id        Int        @id @default(autoincrement())
-  email     String     @unique @db.VarChar(255)
-  password  String     @db.VarChar(255)
-  name      String     @db.VarChar(100)
+  email     String     @unique
+  password  String
+  name      String
   attempts  Attempt[]
   questions Question[]
 
@@ -19,24 +19,25 @@ model User {
 }
 
 model Question {
-  id       Int       @id @default(autoincrement())
-  question String    @db.VarChar(255)
-  answer   String    @db.VarChar(255)
-  choices  Json?
-  userId   Int
-  imageUrl String?   @db.VarChar(255)
-  imagePublicId String? @db.VarChar(255)
+  id            Int       @id @default(autoincrement())
+  question      String
+  answer        String
+  choices       Json?
+  userId        Int
+  imageUrl      String?
+  imagePublicId String?
+
   attempts Attempt[]
-  user     User      @relation(fields: [userId], references: [id], map: "fk_question_user")
+  user     User      @relation(fields: [userId], references: [id])
   keywords Keyword[] @relation("KeywordToQuestion")
 
-  @@index([userId], map: "fk_question_user")
+  @@index([userId])
   @@map("questions")
 }
 
 model Keyword {
   id        Int        @id @default(autoincrement())
-  name      String     @unique @db.VarChar(100)
+  name      String     @unique
   questions Question[] @relation("KeywordToQuestion")
 
   @@map("keywords")
@@ -48,11 +49,13 @@ model Attempt {
   userId     Int
   questionId Int
   isCorrect  Boolean?
-  question   Question @relation(fields: [questionId], references: [id], map: "fk_attempt_question")
-  user       User     @relation(fields: [userId], references: [id], map: "fk_attempt_user")
 
-  @@unique([userId, questionId], map: "user_question_unique")
-  @@index([questionId], map: "fk_attempt_question")
-  @@index([userId], map: "fk_attempt_user")
+  question Question @relation(fields: [questionId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, questionId])
+  @@index([questionId])
+  @@index([userId])
+
   @@map("attempts")
 }
