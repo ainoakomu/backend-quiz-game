@@ -207,7 +207,7 @@ async function loadQuestions(keyword = "", page = 1) {
           <div class="question-actions">
             <span>
               <button class="btn btn-play" data-id="${q.id}">Play</button>
-              <a href="#" class="read-more" data-id="${q.id}">See answer</a>
+             
             </span>
             ${
               q.userId === currentUserId
@@ -558,9 +558,5 @@ function handleLogout() {
 // --- Init ---
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("logout-btn").addEventListener("click", handleLogout);
-  if (getToken()) {
-    showApp();
-  } else {
     showAuth();
-  }
 });
